@@ -7,20 +7,29 @@ import webbrowser
 import requests
 from gmplot import gmplot
 import sys
-import traceback
+from difflib import SequenceMatcher
+from textwrap import shorten
 
 class SchoolWidget(QtWidgets.QWidget):
     def __init__(self, nome, endereco, codigo_censo, latitude, longitude):
         super().__init__()
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.nome_label = QLabel(f"Nome da Escola: {nome}")
+        self.nome_label = QLabel(shorten(nome, width=50, placeholder="..."))
         self.nome_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.nome_label)
 
-        self.endereco_label = QLabel(f"Endereço: {endereco}")
+        self.endereco_label = QLabel(shorten(endereco, width=50, placeholder="..."))
         self.endereco_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.endereco_label)
+
+        # Adiciona a opção de selecionar o texto com o mouse
+        self.nome_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.endereco_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        
+        # Defina o tooltip como o nome da escola/endereço completo
+        self.nome_label.setToolTip(nome)
+        self.endereco_label.setToolTip(endereco)
 
         self.codigo_censo_label = QLabel(f"Código do Censo: {codigo_censo}")
         self.codigo_censo_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
@@ -171,15 +180,22 @@ class App(QtWidgets.QWidget):
             QtWidgets.QMessageBox.critical(self, 'Erro', 'Código do censo inválido')
             return
 
-        row = self.df[self.df['Código INEP'] == codigo_censo]
+        row = self.df[self.df['Código INEP'].astype(int) == codigo_censo]
         if not row.empty:
-            self.latitude = row['Latitude'].values[0]
-            self.longitude = row['Longitude'].values[0]
-            self.nome_label.setText(f"Nome da Escola: {row['Escola'].values[0]}")
-            self.endereco_label.setText(f"Endereço: {row['Endereço'].values[0]}")
-            self.abrir_localizacao()
+            # Remove todos os widgets anteriores
+            for i in reversed(range(self.scroll_layout.count())):
+                widgetToRemove = self.scroll_layout.itemAt(i).widget()
+                # remove it from the layout list
+                self.scroll_layout.removeWidget(widgetToRemove)
+                # remove it from the gui
+                widgetToRemove.setParent(None)
+
+            # Adiciona o novo widget
+            school_widget = SchoolWidget(row['Escola'].values[0], row['Endereço'].values[0], row['Código INEP'].values[0], row['Latitude'].values[0], row['Longitude'].values[0])
+            self.scroll_layout.addWidget(school_widget)
         else:
             QtWidgets.QMessageBox.critical(self, 'Erro', 'Código do censo não encontrado')
+
 
     def buscar_nome(self):
         nome_escola = self.entry.text().lower()
@@ -192,8 +208,10 @@ class App(QtWidgets.QWidget):
 
         # Busca a escola pelo nome, insensível a maiúsculas/minúsculas, e pela UF
         words = nome_escola.split()
-        query = "|".join(words)  # join the words with OR operator
-        rows = self.df[(self.df['Escola'].str.lower().str.contains(query)) & (self.df['UF'] == uf)]
+        query = ' & '.join(f'Escola.str.lower().str.contains("{word}")' for word in words)  # join the words with AND operator
+        rows = self.df.query(query + f' and UF == "{uf}"')
+        rows['match_score'] = rows['Escola'].apply(lambda x: SequenceMatcher(None, x, nome_escola).ratio())
+        rows = rows.sort_values('match_score', ascending=False)
         if rows.empty:
             QtWidgets.QMessageBox.critical(self, 'Erro', 'Nenhuma escola encontrada')
             return
