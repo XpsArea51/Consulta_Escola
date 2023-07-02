@@ -3,13 +3,15 @@ import pandas as pd
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QLabel, QPushButton, QCompleter, QSplashScreen
 from PyQt5.QtGui import QIcon, QPixmap
-import webbrowser
+from PyQt5.QtCore import QSize
 from gmplot import gmplot
 import sys
 from difflib import SequenceMatcher
 from textwrap import shorten
 import time
 import urllib.parse
+import webbrowser
+
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -30,25 +32,39 @@ class SchoolWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.nome_label = QLabel(shorten(str(nome), width=50, placeholder="..."))
+        self.nome_label = QLabel(shorten(f"Nome: {str(nome)}", width=50, placeholder="..."))
         self.nome_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.nome_label)
 
+        if pd.notnull(uf):
+            self.uf_label = QLabel(f"UF: {uf}")
+            self.uf_label.setToolTip(uf)
+        else:
+            self.uf_label = QLabel("UF: Não disponível")
+            self.uf_label.setToolTip("UF: Não disponível")
+        
+        self.uf_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        layout.addWidget(self.uf_label)
+
+        if pd.notnull(municipio):
+            self.municipio_label = QLabel(f"Município: {municipio}")
+            self.municipio_label.setToolTip(municipio)
+        else:
+            self.municipio_label = QLabel("Município: Não disponível")
+            self.municipio_label.setToolTip("Município: Não disponível")
+        
+        self.municipio_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        layout.addWidget(self.municipio_label)
+
         if pd.notnull(endereco):
-            self.endereco_label = QLabel(shorten(str(endereco), width=50, placeholder="..."))
+            self.endereco_label = QLabel(shorten(f"Endereço: {str(endereco)}", width=50, placeholder="..."))
             self.endereco_label.setToolTip(endereco)
         else:
-            self.endereco_label = QLabel("Endereço não disponível")
-            self.endereco_label.setToolTip("Endereço não disponível")
+            self.endereco_label = QLabel("Endereço: Não disponível")
+            self.endereco_label.setToolTip("Endereço: Não disponível")
         
         self.endereco_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.endereco_label)
-
-        # Adiciona a opção de selecionar o texto com o mouse
-        self.nome_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        
-        # Defina o tooltip como o nome da escola/endereço completo
-        self.nome_label.setToolTip(nome)
 
         self.codigo_censo_label = QLabel(f"Código do Censo: {codigo_censo}")
         self.codigo_censo_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
@@ -61,11 +77,14 @@ class SchoolWidget(QtWidgets.QWidget):
 
         self.show_map_button = QPushButton()
         self.show_map_button.setIcon(QIcon(mapa_icon_path))
+        # Configura o tamanho do ícone para 64x64
+        self.show_map_button.setIconSize(QSize(40, 40))  
         self.show_map_button.setFixedSize(50, 50)
         self.show_map_button.clicked.connect(self.open_map)
         layout.addWidget(self.show_map_button)
 
         layout.addSpacing(20)  # Adiciona espaço entre os widgets de escola
+
 
     def open_map(self):
         if pd.isna(self.latitude) or pd.isna(self.longitude):
@@ -121,17 +140,25 @@ class App(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         # campo de entrada
-        self.entry_label = QLabel("Insira o Código do Censo ou Nome da Escola:", self)
+        self.entry_label = QLabel("Código Censo ou Nome da IE:", self)
         layout.addWidget(self.entry_label)
         self.entry = QtWidgets.QLineEdit(self)
         layout.addWidget(self.entry)
 
-        # campo de entrada para a UF
+        # Definir a largura desejada para a combobox
+        largura_desejada = 100
+
+        # Campo de entrada para a UF
         self.uf_label = QLabel("Selecione a UF:", self)
         layout.addWidget(self.uf_label)
+
         self.uf_entry = QtWidgets.QComboBox(self)
         self.uf_entry.addItems(sorted(['Todos'] + list(self.uf_mapping.values())))
         self.uf_entry.setCurrentText('Todos')
+
+        # Definir a largura da combobox
+        self.uf_entry.setFixedWidth(largura_desejada)
+
         layout.addWidget(self.uf_entry)
 
         # cria uma lista de UFs únicas a partir da planilha
@@ -148,12 +175,42 @@ class App(QtWidgets.QWidget):
         button_layout = QtWidgets.QHBoxLayout()
 
         self.button_codigo = QPushButton('Buscar Código', self)
-        self.button_codigo.setStyleSheet("background-color: blue; color: white;")
+        self.button_codigo.setFixedSize(250, 45)  # Ajuste esses números para o tamanho que você deseja
+        self.button_codigo.setStyleSheet("""
+            QPushButton {
+                color: #FFF;
+                background-color: #116A7B;
+                border-radius: 5px;
+                font-size: 17px;
+            }
+            QPushButton:hover {
+                background-color: #64CCC5;
+            }
+            QPushButton:pressed {
+                background-color: #A2FF86;
+            }
+        """)
+
         button_layout.addWidget(self.button_codigo)
         self.button_codigo.clicked.connect(self.buscar_codigo)
 
-        self.button_nome = QPushButton('Buscar Por Nome', self)
-        self.button_nome.setStyleSheet("background-color: green; color: white;")
+        self.button_nome = QPushButton('Buscar Nome', self)
+        self.button_nome.setFixedSize(250, 45)  # Ajuste esses números para o tamanho que você deseja
+        self.button_nome.setStyleSheet("""
+            QPushButton {
+                color: #FFF;
+                background-color: #F24C3D;
+                border-radius: 5px;
+                font-size: 17px;
+            }
+            QPushButton:hover {
+                background-color: #22A699;
+            }
+            QPushButton:pressed {
+                background-color: #A2FF86;
+            }
+        """)
+
         button_layout.addWidget(self.button_nome)
         self.button_nome.clicked.connect(self.buscar_nome)
 
@@ -243,7 +300,7 @@ class App(QtWidgets.QWidget):
             query += f' and UF == "{uf}"'
 
         rows = self.df.query(query)
-        rows['match_score'] = rows['Escola'].apply(lambda x: SequenceMatcher(None, x, nome_escola).ratio())
+        rows.loc[:, 'match_score'] = rows['Escola'].apply(lambda x: SequenceMatcher(None, x, nome_escola).ratio())
         rows = rows.sort_values('match_score', ascending=False)
         
         if rows.empty:
