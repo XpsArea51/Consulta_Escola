@@ -9,6 +9,7 @@ import sys
 from difflib import SequenceMatcher
 from textwrap import shorten
 import time
+import urllib.parse
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -22,14 +23,14 @@ csv_censo_path = resource_path('novo_censo.csv')
 csv_ufs_path = resource_path('base_ufs.csv')
 
 class SchoolWidget(QtWidgets.QWidget):
-    def __init__(self, nome, endereco, codigo_censo, latitude, longitude):
+    def __init__(self, nome, endereco, codigo_censo, latitude, longitude, municipio, uf):
         super().__init__()
 
         self.setWindowIcon(QIcon(icone_path))
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.nome_label = QLabel(shorten(nome, width=50, placeholder="..."))
+        self.nome_label = QLabel(shorten(str(nome), width=50, placeholder="..."))
         self.nome_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.nome_label)
 
@@ -53,6 +54,8 @@ class SchoolWidget(QtWidgets.QWidget):
         self.codigo_censo_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.codigo_censo_label)
 
+        self.municipio = municipio
+        self.uf = uf
         self.latitude = latitude
         self.longitude = longitude
 
@@ -65,10 +68,14 @@ class SchoolWidget(QtWidgets.QWidget):
         layout.addSpacing(20)  # Adiciona espaço entre os widgets de escola
 
     def open_map(self):
-        if self.latitude and self.longitude:
-            self.abrir_localizacao()
+        if pd.isna(self.latitude) or pd.isna(self.longitude):
+            query = f'{self.nome_label.text()} {self.municipio} {self.uf}'
+            url = 'https://www.google.com/maps/search/' + urllib.parse.quote(query)
+            webbrowser.open(url)
         else:
-            webbrowser.open(f'https://www.google.com/maps/search/{self.endereco}')
+            self.abrir_localizacao()
+
+
 
     def abrir_localizacao(self):
         gmap = gmplot.GoogleMapPlotter(float(self.latitude), float(self.longitude), 15, apikey="AIzaSyALZGyVtICuk8rlvPcWXH_IBngvZbzLvrc")
@@ -204,14 +211,15 @@ class App(QtWidgets.QWidget):
         # Remove todos os widgets anteriores
         self.clear_widgets()
 
-        row = self.df[self.df['Código INEP'].astype(str) == codigo_censo]
-        if not row.empty:
-
-            # Adiciona o novo widget
-            school_widget = SchoolWidget(row['Escola'].values[0], row['Endereço'].values[0], row['Código INEP'].values[0], row['Latitude'].values[0], row['Longitude'].values[0])
-            self.scroll_layout.addWidget(school_widget)
+        rows = self.df[self.df['Código INEP'].astype(str) == codigo_censo]
+        if not rows.empty:
+            # Adiciona os novos widgets
+            for index, row in rows.iterrows():
+                school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], row['Latitude'], row['Longitude'], row['Município'], row['UF'])
+                self.scroll_layout.addWidget(school_widget)
         else:
             QtWidgets.QMessageBox.critical(self, 'Erro', 'Código do censo não encontrado')
+
 
 
     def buscar_nome(self):
@@ -247,7 +255,7 @@ class App(QtWidgets.QWidget):
 
         # Adiciona os novos widgets
         for _, row in rows.iterrows():
-            school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], row['Latitude'], row['Longitude'])
+            school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], row['Latitude'], row['Longitude'], row['Município'], row['UF'])
             self.scroll_layout.addWidget(school_widget)
 
 
@@ -281,7 +289,7 @@ class App(QtWidgets.QWidget):
 
         # Adiciona os novos widgets
         for _, row in rows.iterrows():
-            school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], '', '')
+            school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], row['Latitude'], row['Longitude'], row['Município'], row['UF'])
             self.scroll_layout.addWidget(school_widget)
 
     def toggle_topmost(self, state):
@@ -308,4 +316,3 @@ while not window.isVisible():
 splash.finish(window)  # Fechar o splash screen
 
 app.exec_()
- .
