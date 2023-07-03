@@ -227,10 +227,31 @@ class App(QtWidgets.QWidget):
         self.codigo_censo_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         layout.addWidget(self.codigo_censo_label)
 
-        # check button para manter a janela no topo
-        self.topmost_check = QtWidgets.QCheckBox("Travar Janela", self)
-        self.topmost_check.stateChanged.connect(self.toggle_topmost)
-        layout.addWidget(self.topmost_check)
+        self.button = QtWidgets.QPushButton("Travar Janela", self)
+        self.button.setFixedSize(90, 20)
+        self.button.setCheckable(True)  # torna o botão toggle
+        self.button.setStyleSheet("""
+            QPushButton {
+                background-color: #333;
+                color: #fff;
+                border: 2px solid #333;
+                font: 10px sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #ff003b;
+                color: #fff;
+            }
+            QPushButton:pressed {
+                background-color: #ff003b;
+                color: #fff;
+            }
+            QPushButton:checked {
+                background-color: #ff003b;
+                color: #fff;
+            }
+        """)
+
+        layout.addWidget(self.button)
 
         # scroll area
         self.scroll_area = QtWidgets.QScrollArea(self)
