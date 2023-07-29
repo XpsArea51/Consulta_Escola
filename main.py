@@ -112,7 +112,7 @@ class App(QtWidgets.QWidget):
         # Define arquivos CSV
         self.csv_files = [csv_censo_path]
         
-        self.load_data()  # mover esta chamada para antes de init_ui()
+        self.load_data()
         self.init_ui()
 
     def load_data(self):
@@ -174,7 +174,7 @@ class App(QtWidgets.QWidget):
         # botões
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.button_codigo = QPushButton('Buscar Código', self)
+        self.button_codigo = QPushButton('Buscar código censo', self)
         self.button_codigo.setFixedSize(250, 45)  # Ajuste esses números para o tamanho que você deseja
         self.button_codigo.setStyleSheet("""
             QPushButton {
@@ -228,14 +228,14 @@ class App(QtWidgets.QWidget):
         layout.addWidget(self.codigo_censo_label)
 
         self.button = QtWidgets.QPushButton("Travar Janela", self)
-        self.button.setFixedSize(90, 20)
+        self.button.setFixedSize(115, 22)
         self.button.setCheckable(True)  # torna o botão toggle
         self.button.setStyleSheet("""
             QPushButton {
                 background-color: #333;
                 color: #fff;
                 border: 2px solid #333;
-                font: 10px sans-serif;
+                font: 15px sans-serif;
             }
             QPushButton:hover {
                 background-color: #ff003b;
@@ -250,6 +250,9 @@ class App(QtWidgets.QWidget):
                 color: #fff;
             }
         """)
+
+        # Conecta o sinal 'clicked' ou 'toggled' ao slot 'toggle_topmost'
+        self.button.toggled.connect(self.toggle_topmost)
 
         layout.addWidget(self.button)
 
@@ -370,11 +373,13 @@ class App(QtWidgets.QWidget):
             school_widget = SchoolWidget(row['Escola'], row['Endereço'], row['Código INEP'], row['Latitude'], row['Longitude'], row['Município'], row['UF'])
             self.scroll_layout.addWidget(school_widget)
 
-    def toggle_topmost(self, state):
-        if state == QtCore.Qt.Checked:
+    def toggle_topmost(self):
+        if self.button.isChecked():
             self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+            self.button.setText("Janela Travada")
         else:
             self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
+            self.button.setText("Travar Janela")
         self.show()
 
 app = QtWidgets.QApplication([])
